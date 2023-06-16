@@ -36,7 +36,7 @@ func (n *Notificator) Start() error {
 	if err := n.notifyIfDifferent(); err != nil {
 		return err
 	}
-
+	n.errorsCounter = 0
 	n.isStarted = true
 	n.msgFunc("Менеджер уведомлений запущен")
 	go func() {
@@ -47,14 +47,16 @@ func (n *Notificator) Start() error {
 				return
 			case <-n.ticker.C:
 				if err := n.notifyIfDifferent(); err != nil {
+					log.Print(err)
 					n.lastError = err
 					n.errorsCounter++
-					if n.errorsCounter > 10 {
+					if n.errorsCounter >= 10 {
 						n.msgFunc("Отключение из-за лимита ошибок")
 						n.ticker.Stop()
 						n.isStarted = false
 						return
 					}
+					continue
 				}
 				if n.errorsCounter != 0 {
 					n.errorsCounter = 0
@@ -68,7 +70,6 @@ func (n *Notificator) Start() error {
 func (n *Notificator) notifyIfDifferent() error {
 	result, err := n.grabber.GetIfDifferent()
 	if err != nil {
-		log.Print("notificator error", err.Error())
 		return err
 	}
 	if result != nil {
